@@ -1,0 +1,111 @@
+{
+  "_meta": {
+    "version": "0.1.0-seed",
+    "description": "Curated domain and role knowledge base for ResumeForge. Role base stacks supply role-generic tooling; domain entries supply industry-specific systems. The generator combines role.baseSkills + domain.tools and weaves them into bullets. Expand this file to improve quality; no code changes required.",
+    "updated": "2026-06-21",
+    "usage": "plan call maps each company -> domains[key] using companyHints; role calls receive that domain entry + the role base stack as grounding."
+  },
+
+  "roles": {
+    "Business Analyst": {
+      "titles": ["Business Analyst", "Senior Business Analyst"],
+      "baseSkills": ["BRD", "FRD", "RTM", "Requirement Gathering", "Use Cases", "Functional Specifications", "Acceptance Criteria", "Business Rules", "Gap Analysis", "UAT", "SIT", "Agile", "Scrum", "Hybrid Agile", "Waterfall", "SDLC", "JIRA", "Confluence", "Azure DevOps", "SharePoint", "ServiceNow", "MS Visio", "Lucidchart", "Draw.io", "Power BI", "Tableau", "SSRS", "SQL Server", "MS Excel", "VBA", "TestRail", "HP ALM", "Postman", "Swagger"],
+      "categories": ["Business Analysis", "Methodologies", "Data and Databases", "Reporting Tools", "Testing Tools", "Collaboration Tools"]
+    },
+    "Data Analyst": {
+      "titles": ["Data Analyst", "Senior Data Analyst"],
+      "baseSkills": ["SQL", "Python", "R", "Pandas", "NumPy", "Matplotlib", "Jupyter Notebook", "SAS", "SPSS", "PySpark", "Power BI", "Tableau", "Qlik Sense", "SSRS", "SAP BusinessObjects", "IBM Cognos Analytics", "DAX", "Power Query", "Advanced Excel", "Pivot Tables", "VLOOKUP", "INDEX MATCH", "VBA Macros", "Excel Power Pivot", "Snowflake", "AWS Redshift", "Azure Synapse Analytics", "Informatica PowerCenter", "SSIS", "Talend Open Studio", "Alteryx", "Databricks", "Apache Spark", "Azure Data Factory", "AWS Glue", "Microsoft Purview", "Collibra", "Git", "GitHub", "JIRA", "Confluence", "ServiceNow"],
+      "categories": ["Programming & Analytics", "Databases & Warehouses", "Cloud & Big Data", "BI & Reporting", "Excel & Office Tools", "ETL & Data Integration", "Collaboration & Governance"]
+    },
+    "C++ Developer": {
+      "titles": ["C++ Developer", "Senior C++ Developer"],
+      "baseSkills": ["C++20", "C++17", "C++14", "C++11", "C", "Embedded C", "STL", "Boost", "Python", "Bash", "Shell Scripting", "SQL", "Linux", "Ubuntu", "Embedded Linux", "RTOS", "FreeRTOS", "Multithreading", "Socket Programming", "TCP/IP", "UDP", "REST APIs", "CMake", "Makefile", "GCC", "Clang", "MSVC", "GDB", "Valgrind", "Cppcheck", "Clang-Tidy", "SonarQube", "Google Test", "CppUnit", "Jenkins", "Docker", "Git", "GitHub", "GitLab", "Bitbucket", "JIRA", "Confluence", "Doxygen", "SQLite", "PostgreSQL", "MySQL"],
+      "categories": ["Programming Languages", "Operating Systems", "Frameworks and Libraries", "Build and CI/CD Tools", "Debugging and Quality Tools", "Databases", "Project and Documentation Tools"]
+    }
+  },
+
+  "domains": {
+    "healthcare_payer": {
+      "label": "Healthcare Payer",
+      "companyHints": ["cigna", "unitedhealth", "united health", "aetna", "humana", "anthem", "centene", "molina", "optum"],
+      "tools": ["Facets", "QNXT", "HIPAA", "HL7", "FHIR", "EDI X12 837/835", "Claims Processing", "Member Enrollment", "Provider Data Management", "Prior Authorization", "Medicare Analytics", "Claims Data", "Member Eligibility", "Care Coordination", "Utilization Review", "REST APIs"],
+      "environments": ["Facets 6.x", "QNXT 5.x", "HIPAA 5010", "HL7 v2.5", "FHIR R4", "EDI X12 837/835", "SQL Server 2019", "Postman 10.x", "Swagger/OpenAPI 3.0", "Snowflake", "Azure Synapse Analytics", "Microsoft Purview", "Collibra"],
+      "projectPatterns": ["Payer Modernization", "Care Intelligence", "Claims Surveillance Platform", "Member Enrollment Gateway"],
+      "skillCategory": { "label": "Healthcare Payer", "items": ["Facets", "QNXT", "HIPAA", "HL7", "FHIR", "EDI X12 837/835", "Claims Processing", "Member Enrollment", "Provider Data Management"] }
+    },
+
+    "pc_insurance": {
+      "label": "Insurance (Property & Casualty)",
+      "companyHints": ["assurant", "aig", "travelers", "chubb", "allstate", "progressive", "the hartford", "liberty mutual", "nationwide"],
+      "tools": ["Guidewire ClaimCenter", "Guidewire PolicyCenter", "Duck Creek", "ACORD", "Claims Management", "Policy Administration", "Underwriting Workflows", "Billing Systems", "Reinsurance", "Salesforce Service Cloud", "Actuarial Data", "Policy Data", "Claims Reporting", "Risk Analytics", "Underwriting Analytics", "Loss Ratio Analysis", "SOX"],
+      "environments": ["Guidewire ClaimCenter 10.x", "Guidewire PolicyCenter 10.x", "Duck Creek Suite 7.x", "ACORD XML", "Salesforce Service Cloud Lightning", "SQL Server 2017", "SSRS 2017", "Power BI Desktop 2022", "Informatica PowerCenter 10.x", "Oracle 19c", "Teradata 16.x"],
+      "projectPatterns": ["Insurance Modernization", "Risk Intelligence", "Policy Servicing Platform", "Claims Intake Modernization"],
+      "skillCategory": { "label": "Insurance Systems", "items": ["Guidewire ClaimCenter", "Guidewire PolicyCenter", "Duck Creek", "ACORD", "Claims Management", "Policy Administration", "Underwriting Workflows", "Reinsurance"] }
+    },
+
+    "public_sector_benefits": {
+      "label": "Public Sector Benefits",
+      "companyHints": ["state of", "department of", "medicaid", "health and human services", "dhs", "county of"],
+      "tools": ["Medicaid", "MMIS", "Eligibility Systems", "SNAP", "TANF", "Health Insurance Exchange", "Salesforce Public Sector", "PEGA", "Data Mapping", "Change Requests", "HIPAA"],
+      "environments": ["SQL Server 2016", "SSRS", "Tableau", "Azure DevOps", "SharePoint", "ServiceNow", "PEGA", "Salesforce Public Sector", "MS Visio 2019", "Draw.io"],
+      "projectPatterns": ["Benefits Gateway", "Eligibility Modernization", "MMIS Case Operations"],
+      "skillCategory": { "label": "Public Sector Benefits", "items": ["Medicaid", "MMIS", "Eligibility Systems", "SNAP", "TANF", "Health Insurance Exchange", "Salesforce Public Sector", "PEGA"] }
+    },
+
+    "banking": {
+      "label": "Banking",
+      "companyHints": ["icici", "hdfc", "axis bank", "sbi", "kotak", "citi", "jpmorgan", "wells fargo", "bank of"],
+      "tools": ["Core Banking", "Finacle", "AML", "KYC", "SWIFT", "NEFT", "RTGS", "UPI", "Loan Origination", "Credit Risk", "Reconciliation"],
+      "environments": ["Finacle", "Oracle 11g", "PL/SQL", "SQL Server 2017", "Power BI", "Tableau", "JIRA", "Confluence"],
+      "projectPatterns": ["Core Banking Transformation", "Payments Modernization", "Lending Platform"],
+      "skillCategory": { "label": "Banking Domain", "items": ["Core Banking", "Finacle", "AML", "KYC", "SWIFT", "NEFT", "RTGS", "UPI", "Loan Origination", "Credit Risk"] }
+    },
+
+    "automotive_embedded": {
+      "label": "Automotive (Embedded / ECU)",
+      "companyHints": ["ford", "general motors", "gm", "toyota", "stellantis", "bmw", "volkswagen", "bosch", "continental", "tesla", "rivian"],
+      "tools": ["AUTOSAR", "Adaptive AUTOSAR", "Classic AUTOSAR", "CAN", "LIN", "UDS", "SOME/IP", "Ethernet", "DDS", "ECU Diagnostics", "CANoe", "CANalyzer", "VectorCAST", "HIL Testing", "SIL Testing", "ISO 26262", "MISRA C++", "ASPICE", "QNX", "ROS2"],
+      "environments": ["C++17", "C++14", "QNX 7.1", "Linux Kernel 5.10", "Adaptive AUTOSAR 20-11", "Classic AUTOSAR 4.4", "CANoe 15", "CANalyzer 15", "VectorCAST 2022", "CMake 3.23", "GCC 10", "GitLab 15", "Docker 20.10"],
+      "projectPatterns": ["ECU Gateway", "ECU Intelligence", "Vehicle Diagnostics Platform", "Body Control Module"],
+      "skillCategory": { "label": "Automotive Software", "items": ["AUTOSAR", "Adaptive AUTOSAR", "Classic AUTOSAR", "CAN", "LIN", "UDS", "SOME/IP", "Ethernet", "ECU Diagnostics", "HIL Testing"] }
+    },
+
+    "automotive_analytics": {
+      "label": "Automotive (Analytics)",
+      "companyHints": ["mazda", "ford", "general motors", "gm", "toyota", "honda", "nissan", "hyundai"],
+      "tools": ["Vehicle Sales Analytics", "Warranty Data", "Telematics Data", "Supply Chain Metrics", "Inventory Forecasting", "Dealer Performance", "Kafka", "Apache Spark"],
+      "environments": ["PostgreSQL 13", "MySQL 8.0", "AWS Redshift RA3", "AWS S3", "AWS Glue 3.x", "Tableau 2021.x", "Qlik Sense May 2022", "Python 3.9", "R 4.1", "Apache Spark 3.2", "Kafka 2.8", "Alteryx Designer 2022.x"],
+      "projectPatterns": ["Dealer Insights", "Warranty Intelligence", "Telematics Analytics Platform"],
+      "skillCategory": { "label": "Automotive Analytics", "items": ["Vehicle Sales Analytics", "Warranty Data", "Telematics Data", "Supply Chain Metrics", "Inventory Forecasting", "Dealer Performance"] }
+    },
+
+    "capital_markets": {
+      "label": "Capital Markets / Trading",
+      "companyHints": ["morgan stanley", "goldman sachs", "jpmorgan", "citadel", "barclays", "deutsche bank", "ubs", "credit suisse", "jane street"],
+      "tools": ["FIX Protocol", "Bloomberg API", "Low-Latency Systems", "Multithreading", "Socket Programming", "TCP/IP", "Kafka", "Redis", "Order Routing", "Trade Reconciliation", "Market Data"],
+      "environments": ["C++11", "C++14", "STL", "Boost", "Linux", "Unix", "Oracle 19c", "Sybase", "SQL Server", "Kafka", "Redis", "CMake", "GCC", "GDB", "Valgrind", "SonarQube"],
+      "projectPatterns": ["Trading Gateway", "Order Routing Platform", "Market Data Pipeline"],
+      "skillCategory": { "label": "Financial Systems", "items": ["Low-Latency Systems", "FIX Protocol", "Bloomberg API", "Multithreading", "Socket Programming", "TCP/IP", "Kafka", "Redis", "Trade Reconciliation"] }
+    },
+
+    "medical_device": {
+      "label": "Medical Device Software",
+      "companyHints": ["baxter", "johnson & johnson", "j&j", "medtronic", "abbott", "boston scientific", "stryker", "ge healthcare", "siemens healthineers", "philips"],
+      "tools": ["IEC 62304", "ISO 13485", "FDA 21 CFR Part 11", "HL7", "FHIR", "Audit Logging", "Alarm Handling", "Therapy Control", "Qt", "MFC", "OpenCV", "MQTT"],
+      "environments": ["C++20", "C11", "Embedded C", "Linux Kernel 6.x", "FreeRTOS 10.5", "Qt Creator 12", "CMake 3.27", "GCC 13", "GDB 13", "Valgrind 3.21", "Google Test 1.14", "SQLite 3.43", "PostgreSQL 15", "MQTT 5.0", "FHIR R4"],
+      "projectPatterns": ["Therapy Control", "Clinical Workstation", "Device Telemetry Platform"],
+      "skillCategory": { "label": "Medical Device Software", "items": ["IEC 62304", "ISO 13485", "FDA 21 CFR Part 11", "HL7", "FHIR", "Audit Logging", "Safety Documentation"] }
+    },
+
+    "telecom": {
+      "label": "Telecom",
+      "companyHints": ["t-mobile", "verizon", "at&t", "vodafone", "ericsson", "nokia", "cisco", "jio", "airtel"],
+      "tools": ["gRPC", "Protobuf", "Kafka", "ZeroMQ", "Socket Programming", "TCP/IP", "UDP", "REST APIs", "Subscriber Provisioning", "Session Routing", "Kubernetes", "Splunk"],
+      "environments": ["C++17/14", "Linux Kernel 5.x", "Ubuntu 20.04", "Red Hat Linux 8", "Boost 1.76", "gRPC 1.45", "Protobuf 3.19", "Kafka 2.8", "ZeroMQ 4.3", "CMake 3.22", "Kubernetes 1.23", "Splunk 8.2"],
+      "projectPatterns": ["Network Messaging", "Subscriber Provisioning Platform", "Session Routing Services"],
+      "skillCategory": { "label": "Networking and Middleware", "items": ["Socket Programming", "TCP/IP", "UDP", "REST APIs", "gRPC", "Protobuf", "Kafka", "ZeroMQ"] }
+    }
+  },
+
+  "indiaOffshoreHints": ["tcs", "infosys", "wipro", "tech mahindra", "hcl", "kpit", "cognizant", "capgemini", "ltimindtree", "mphasis", "mindtree"]
+}
