@@ -27,7 +27,7 @@ import {
   type RolePlan,
 } from "./schemas";
 import { structuredGenerate } from "./structured";
-import { computeTimeline } from "./timeline";
+import { resolveTimeline } from "./timeline";
 import { DEFAULT_THEME_ID } from "./themes/registry";
 
 export type ProgressEvent = {
@@ -125,7 +125,7 @@ export async function generateResumeModel(
 
   const timeline = await runStage(
     "timeline",
-    async () => computeTimeline(parsed.yearsExperience, parsed.companies.length),
+    async () => resolveTimeline(parsed.companies, parsed.yearsExperience),
     onProgress,
   );
 

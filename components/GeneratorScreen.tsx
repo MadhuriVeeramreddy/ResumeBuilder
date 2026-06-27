@@ -8,7 +8,7 @@ import { REFERENCE_PROFILES } from "@/lib/fixtures/reference-profiles";
 import type { Company, GenerationInput, ResumeModel } from "@/lib/schemas";
 import { DEFAULT_THEME_ID } from "@/lib/themes/registry";
 
-type CompanyRow = { name: string; country: string };
+type CompanyRow = { name: string; country: string; startYear: string; endYear: string };
 
 const STAGE_LABELS: Record<string, string> = {
   planning: "Planning domains",
@@ -25,11 +25,28 @@ const STAGE_LABELS: Record<string, string> = {
 
 function defaultCompanies(): CompanyRow[] {
   return [
-    { name: "", country: "USA" },
-    { name: "", country: "USA" },
-    { name: "", country: "USA" },
-    { name: "", country: "India" },
+    { name: "", country: "USA", startYear: "", endYear: "" },
+    { name: "", country: "USA", startYear: "", endYear: "" },
+    { name: "", country: "USA", startYear: "", endYear: "" },
+    { name: "", country: "India", startYear: "", endYear: "" },
   ];
+}
+
+function parseYear(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const year = Number(trimmed);
+  return Number.isInteger(year) && year >= 1970 && year <= 2100 ? year : undefined;
+}
+
+function parseEndYear(value: string, isMostRecent: boolean): number | "present" | undefined {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) {
+    return isMostRecent ? "present" : undefined;
+  }
+  if (trimmed === "present") return "present";
+  const year = Number(trimmed);
+  return Number.isInteger(year) && year >= 1970 && year <= 2100 ? year : undefined;
 }
 
 function buildProgressItems(companyNames: string[]): ProgressItem[] {
@@ -98,6 +115,33 @@ export function GeneratorScreen() {
     if (companies.some((c) => !c.name.trim())) return "All four companies are required.";
     const yearsNum = Number(years);
     if (!Number.isFinite(yearsNum) || yearsNum < 1) return "Years of experience must be a positive number.";
+
+    const hasAnyYear = companies.some((c) => c.startYear.trim() || c.endYear.trim());
+    if (!hasAnyYear) return null;
+
+    for (let index = 0; index < companies.length; index++) {
+      const company = companies[index];
+      const isMostRecent = index === 0;
+      const startYear = parseYear(company.startYear);
+      const endYear = parseEndYear(company.endYear, isMostRecent);
+
+      if (!company.startYear.trim()) {
+        return `Start year is required for ${company.name.trim() || `company ${index + 1}`} when using explicit dates.`;
+      }
+      if (startYear == null) {
+        return `Start year must be a valid year for ${company.name.trim() || `company ${index + 1}`}.`;
+      }
+      if (!isMostRecent && !company.endYear.trim()) {
+        return `End year is required for ${company.name.trim() || `company ${index + 1}`}.`;
+      }
+      if (endYear == null) {
+        return `End year must be a valid year or Present for ${company.name.trim() || `company ${index + 1}`}.`;
+      }
+      if (typeof endYear === "number" && endYear < startYear) {
+        return `End year must be on or after start year for ${company.name.trim()}.`;
+      }
+    }
+
     return null;
   }, [name, role, companies, years]);
 
@@ -111,7 +155,19 @@ export function GeneratorScreen() {
     setName(profile.input.name);
     setRole(profile.input.role);
     setYears(String(profile.input.yearsExperience));
-    setCompanies(profile.input.companies.map((c: Company) => ({ ...c })));
+    setCompanies(
+      profile.input.companies.map((c: Company) => ({
+        name: c.name,
+        country: c.country,
+        startYear: c.startYear != null ? String(c.startYear) : "",
+        endYear:
+          c.endYear === "present"
+            ? "Present"
+            : c.endYear != null
+              ? String(c.endYear)
+              : "",
+      })),
+    );
     setThemeId(profile.input.themeId ?? DEFAULT_THEME_ID);
     setError(null);
     setFailedStage(null);
@@ -122,7 +178,17 @@ export function GeneratorScreen() {
       name: name.trim(),
       role: role.trim(),
       yearsExperience: Number(years),
-      companies: companies.map((c) => ({ name: c.name.trim(), country: c.country.trim() || "USA" })),
+      companies: companies.map((c, index) => {
+        const row: Company = {
+          name: c.name.trim(),
+          country: c.country.trim() || "USA",
+        };
+        const startYear = parseYear(c.startYear);
+        const endYear = parseEndYear(c.endYear, index === 0);
+        if (startYear != null) row.startYear = startYear;
+        if (endYear != null) row.endYear = endYear;
+        return row;
+      }),
       themeId,
     };
   }
@@ -296,9 +362,20 @@ export function GeneratorScreen() {
         <TextField label="Total years of experience" value={years} onChange={setYears} type="number" />
 
         <div className="space-y-2">
-          <p className="text-sm font-medium text-slate-700">Companies (most recent first; India last)</p>
+          <p className="text-sm font-medium text-slate-700">
+            Companies (most recent first; India last)
+          </p>
+          <p className="text-xs text-slate-500">
+            Optional start/end years per role. Leave years blank to auto-compute from total experience.
+          </p>
+          <div className="grid grid-cols-6 gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <span className="col-span-2">Company</span>
+            <span>Country</span>
+            <span>Start</span>
+            <span>End</span>
+          </div>
           {companies.map((company, index) => (
-            <div key={index} className="grid grid-cols-3 gap-2">
+            <div key={index} className="grid grid-cols-6 gap-2">
               <input
                 value={company.name}
                 onChange={(e) => updateCompany(index, "name", e.target.value)}
@@ -309,6 +386,19 @@ export function GeneratorScreen() {
                 value={company.country}
                 onChange={(e) => updateCompany(index, "country", e.target.value)}
                 placeholder="Country"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+              />
+              <input
+                value={company.startYear}
+                onChange={(e) => updateCompany(index, "startYear", e.target.value)}
+                placeholder="2022"
+                inputMode="numeric"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+              />
+              <input
+                value={company.endYear}
+                onChange={(e) => updateCompany(index, "endYear", e.target.value)}
+                placeholder={index === 0 ? "Present" : "2024"}
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </div>

@@ -71,6 +71,22 @@ export const REFERENCE_PROFILES: ReferenceProfile[] = [
       themeId: "modern_sage",
     },
   },
+  {
+    id: "pallavi",
+    label: "Pallavi (Workday HCM)",
+    input: {
+      name: "Pallavi",
+      role: "Workday HCM Consultant",
+      yearsExperience: 8,
+      companies: [
+        { name: "Truist", country: "USA", startYear: 2024, endYear: "present" },
+        { name: "AstraZeneca", country: "USA", startYear: 2022, endYear: 2024 },
+        { name: "Target", country: "USA", startYear: 2019, endYear: 2022 },
+        { name: "Synechron INC", country: "India", startYear: 2018, endYear: 2019 },
+      ],
+      themeId: "classic_navy",
+    },
+  },
 ];
 
 export function getReferenceProfile(id: string): ReferenceProfile | undefined {

@@ -1,8 +1,15 @@
 import { z } from "zod";
 
+export const CompanyEndYearSchema = z.union([
+  z.number().int().min(1970).max(2100),
+  z.literal("present"),
+]);
+
 export const CompanySchema = z.object({
   name: z.string().min(1),
   country: z.string().min(1),
+  startYear: z.number().int().min(1970).max(2100).optional(),
+  endYear: CompanyEndYearSchema.optional(),
 });
 
 export const ContactSchema = z.object({
@@ -98,6 +105,7 @@ export const ResumeModelSchema = z.object({
       items: z.array(z.string()),
     }),
   ),
+  education: z.array(z.string()).optional(),
   roles: z.array(
     RolePlanSchema.extend({
       projectName: z.string(),

@@ -16,6 +16,8 @@ import type { ResumeTheme } from "../themes/types";
 
 const BULLET_REF = "resume-bullets";
 const HEADER_CENTER_STYLE = "ResumeHeaderCenter";
+const BODY_LEFT_STYLE = "ResumeBodyLeft";
+const DEFAULT_EDUCATION = ["Bachelors in Computer Science,"];
 
 function ptToHalfPoints(pt: number): number {
   return Math.round(pt * 2);
@@ -60,6 +62,15 @@ function bodyRun(
   });
 }
 
+function emptyLine(theme: ResumeTheme): Paragraph {
+  return new Paragraph({
+    style: BODY_LEFT_STYLE,
+    alignment: AlignmentType.LEFT,
+    spacing: { before: 0, after: 0, line: Math.round(theme.spacing.line * 240) },
+    children: [],
+  });
+}
+
 function sectionHeading(text: string, theme: ResumeTheme): Paragraph {
   const label = applyCase(text, theme.sectionHeadingCase);
   const border =
@@ -75,6 +86,8 @@ function sectionHeading(text: string, theme: ResumeTheme): Paragraph {
         };
 
   return new Paragraph({
+    style: BODY_LEFT_STYLE,
+    alignment: AlignmentType.LEFT,
     spacing: paragraphSpacing(theme, { before: theme.spacing.sectionBefore, after: 6 }),
     border,
     children: [
@@ -91,24 +104,24 @@ function sectionHeading(text: string, theme: ResumeTheme): Paragraph {
 
 function bulletParagraph(text: string, theme: ResumeTheme): Paragraph {
   return new Paragraph({
+    style: BODY_LEFT_STYLE,
+    alignment: AlignmentType.LEFT,
     spacing: paragraphSpacing(theme),
     numbering: { reference: BULLET_REF, level: 0 },
     children: [bodyRun(text, theme)],
   });
 }
 
-function horizontalRule(theme: ResumeTheme): Paragraph {
+function bodyParagraph(
+  content: TextRun[],
+  theme: ResumeTheme,
+  opts?: { before?: number; after?: number; alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] },
+): Paragraph {
   return new Paragraph({
-    spacing: { before: ptToTwips(6), after: ptToTwips(10), line: Math.round(theme.spacing.line * 240) },
-    border: {
-      bottom: {
-        color: hexToDocxColor(theme.colors.accent),
-        space: 1,
-        style: BorderStyle.SINGLE,
-        size: 12,
-      },
-    },
-    children: [new TextRun({ text: "\u00A0", size: 4 })],
+    style: BODY_LEFT_STYLE,
+    alignment: opts?.alignment ?? AlignmentType.LEFT,
+    spacing: paragraphSpacing(theme, { before: opts?.before, after: opts?.after }),
+    children: content,
   });
 }
 
@@ -193,57 +206,59 @@ function bulletFormat(): (typeof LevelFormat)[keyof typeof LevelFormat] {
 export async function assembleDocx(resume: ResumeModel, themeId?: string): Promise<Buffer> {
   const theme = getTheme(themeId ?? resume.themeId);
   const children: Paragraph[] = [];
+  const educationLines = resume.education?.length ? resume.education : DEFAULT_EDUCATION;
 
   children.push(...buildHeader(resume, theme));
+  children.push(emptyLine(theme));
 
   children.push(sectionHeading("Summary", theme));
-  children.push(
-    new Paragraph({
-      spacing: paragraphSpacing(theme),
-      children: [bodyRun(resume.summary.opening, theme)],
-    }),
-  );
+  children.push(bodyParagraph([bodyRun(resume.summary.opening, theme)], theme));
   for (const bullet of resume.summary.bullets) {
     children.push(bulletParagraph(bullet, theme));
   }
+  children.push(emptyLine(theme));
 
   children.push(sectionHeading("Technical Skills", theme));
   for (const group of resume.skills) {
     children.push(
-      new Paragraph({
-        spacing: paragraphSpacing(theme),
-        children: [
-          bodyRun(`${group.label}: `, theme, { bold: true }),
-          bodyRun(group.items.join(", "), theme),
-        ],
-      }),
+      bodyParagraph(
+        [bodyRun(`${group.label}: `, theme, { bold: true }), bodyRun(group.items.join(", "), theme)],
+        theme,
+      ),
     );
   }
+  children.push(emptyLine(theme));
+
+  children.push(sectionHeading("Education", theme));
+  for (const line of educationLines) {
+    children.push(bodyParagraph([bodyRun(line, theme)], theme, { alignment: AlignmentType.LEFT }));
+  }
+  children.push(emptyLine(theme));
 
   children.push(sectionHeading("Professional Experience", theme));
   for (const role of resume.roles) {
-    children.push(
-      new Paragraph({
-        spacing: paragraphSpacing(theme, { before: 6 }),
-        children: [bodyRun(`${role.company} · ${role.location}`, theme, { bold: true })],
-      }),
-    );
+    children.push(emptyLine(theme));
 
     children.push(
-      new Paragraph({
-        spacing: paragraphSpacing(theme, { after: 4 }),
-        children: [
-          bodyRun(`${role.title} — ${role.specialization}`, theme, { bold: true }),
-          bodyRun(` | ${role.dates.start} – ${role.dates.end}`, theme, { italics: true }),
+      bodyParagraph(
+        [
+          bodyRun(`${role.title} | `, theme, { bold: true }),
+          bodyRun(`${role.dates.start} – ${role.dates.end}`, theme),
         ],
+        theme,
+        { alignment: AlignmentType.LEFT, before: 0 },
+      ),
+    );
+
+    children.push(
+      bodyParagraph([bodyRun(role.company, theme, { bold: true })], theme, {
+        alignment: AlignmentType.LEFT,
+        after: 4,
       }),
     );
 
     children.push(
-      new Paragraph({
-        spacing: paragraphSpacing(theme),
-        children: [bodyRun(`${role.projectName}: ${role.intro}`, theme)],
-      }),
+      bodyParagraph([bodyRun(`${role.projectName}: ${role.intro}`, theme)], theme),
     );
 
     for (const bullet of role.bullets) {
@@ -251,21 +266,28 @@ export async function assembleDocx(resume: ResumeModel, themeId?: string): Promi
     }
 
     children.push(
-      new Paragraph({
-        spacing: paragraphSpacing(theme, { after: 4 }),
-        children: [
-          bodyRun("Environments: ", theme, { bold: true }),
-          bodyRun(role.environments.join(", "), theme),
-        ],
-      }),
+      bodyParagraph(
+        [bodyRun("Environments: ", theme, { bold: true }), bodyRun(role.environments.join(", "), theme)],
+        theme,
+        { after: 4 },
+      ),
     );
 
-    children.push(horizontalRule(theme));
+    children.push(emptyLine(theme));
   }
 
   const doc = new Document({
     styles: {
       paragraphStyles: [
+        {
+          id: BODY_LEFT_STYLE,
+          name: "Resume Body Left",
+          basedOn: "Normal",
+          quickFormat: true,
+          paragraph: {
+            alignment: AlignmentType.LEFT,
+          },
+        },
         {
           id: HEADER_CENTER_STYLE,
           name: "Resume Header Center",

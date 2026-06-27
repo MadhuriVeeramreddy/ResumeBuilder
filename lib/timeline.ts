@@ -1,4 +1,4 @@
-import type { DateRange } from "./schemas";
+import type { Company, DateRange } from "./schemas";
 
 const MONTHS = [
   "Jan",
@@ -69,4 +69,50 @@ export function computeTimeline(
   }
 
   return ranges;
+}
+
+function formatYearStart(year: number): string {
+  return `Jan ${year}`;
+}
+
+function formatYearEnd(year: number): string {
+  return `Dec ${year}`;
+}
+
+function buildExplicitTimeline(companies: Company[]): DateRange[] | null {
+  if (!companies.every((c) => c.startYear != null)) {
+    return null;
+  }
+
+  return companies.map((company, index) => {
+    const startYear = company.startYear!;
+    const isMostRecent = index === 0;
+    const endYear = company.endYear ?? (isMostRecent ? "present" : undefined);
+
+    if (endYear == null) {
+      throw new Error(`End year is required for ${company.name}`);
+    }
+
+    if (typeof endYear === "number" && endYear < startYear) {
+      throw new Error(`End year must be on or after start year for ${company.name}`);
+    }
+
+    return {
+      start: formatYearStart(startYear),
+      end: endYear === "present" ? "Present" : formatYearEnd(endYear),
+    };
+  });
+}
+
+export function resolveTimeline(
+  companies: Company[],
+  yearsExperience: number,
+  now: Date = new Date(),
+): DateRange[] {
+  const explicit = buildExplicitTimeline(companies);
+  if (explicit) {
+    return explicit;
+  }
+
+  return computeTimeline(yearsExperience, companies.length, now);
 }
