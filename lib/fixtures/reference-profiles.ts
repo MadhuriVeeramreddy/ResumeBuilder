@@ -20,7 +20,7 @@ export const REFERENCE_PROFILES: ReferenceProfile[] = [
         { name: "State of OH", country: "USA" },
         { name: "ICICI Bank", country: "India" },
       ],
-      themeId: "classic_navy",
+      themeId: "kishan_ba",
     },
   },
   {
@@ -36,7 +36,7 @@ export const REFERENCE_PROFILES: ReferenceProfile[] = [
         { name: "AIG Insurance", country: "USA" },
         { name: "TCS", country: "India" },
       ],
-      themeId: "modern_sage",
+      themeId: "akhil_data_engineer",
     },
   },
   {
@@ -52,7 +52,7 @@ export const REFERENCE_PROFILES: ReferenceProfile[] = [
         { name: "Medtronic", country: "USA" },
         { name: "KPIT", country: "India" },
       ],
-      themeId: "tech_slate",
+      themeId: "vasu_cpp",
     },
   },
   {
@@ -68,7 +68,7 @@ export const REFERENCE_PROFILES: ReferenceProfile[] = [
         { name: "Baxter", country: "USA" },
         { name: "Infosys", country: "India" },
       ],
-      themeId: "modern_sage",
+      themeId: "vasu_cpp",
     },
   },
   {
@@ -84,7 +84,7 @@ export const REFERENCE_PROFILES: ReferenceProfile[] = [
         { name: "Target", country: "USA", startYear: 2019, endYear: 2022 },
         { name: "Synechron INC", country: "India", startYear: 2018, endYear: 2019 },
       ],
-      themeId: "classic_navy",
+      themeId: "kishan_ba",
     },
   },
 ];

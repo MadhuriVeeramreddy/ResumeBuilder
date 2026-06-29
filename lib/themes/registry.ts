@@ -1,35 +1,15 @@
-import type { ResumeTheme } from "./types";
-import {
-  bandedIndigo,
-  classicNavy,
-  compactPro,
-  elegantGaramond,
-  executiveBurgundy,
-  minimalMono,
-  modernSage,
-  techSlate,
-} from "./themes";
+import type { ResumeTemplate } from "./types";
+import { ALL_TEMPLATES, kishanBa } from "./templates";
 
-export const DEFAULT_THEME_ID = "classic_navy";
+export const DEFAULT_THEME_ID = "kishan_ba";
 
-const themes: ResumeTheme[] = [
-  classicNavy,
-  modernSage,
-  minimalMono,
-  executiveBurgundy,
-  techSlate,
-  compactPro,
-  bandedIndigo,
-  elegantGaramond,
-];
+const byId = new Map<string, ResumeTemplate>(ALL_TEMPLATES.map((t) => [t.id, t]));
 
-const byId = new Map(themes.map((t) => [t.id, t]));
-
-export function getTheme(id?: string): ResumeTheme {
+export function getTheme(id?: string): ResumeTemplate {
   if (id && byId.has(id)) return byId.get(id)!;
-  return byId.get(DEFAULT_THEME_ID)!;
+  return byId.get(DEFAULT_THEME_ID) ?? kishanBa;
 }
 
-export function listThemes(): ResumeTheme[] {
-  return themes;
+export function listThemes(): ResumeTemplate[] {
+  return ALL_TEMPLATES;
 }

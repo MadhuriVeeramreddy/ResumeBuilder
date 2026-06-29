@@ -6,274 +6,606 @@ import {
   Packer,
   Paragraph,
   ShadingType,
+  Table,
+  TableCell,
+  TableRow,
   TextRun,
+  WidthType,
   convertInchesToTwip,
 } from "docx";
 import { formatContactLine, resolveContact } from "../contact";
 import type { ResumeModel } from "../schemas";
+import type { ExperienceLayout, ResumeTemplate, SectionKind } from "../themes/types";
 import { getTheme } from "../themes/registry";
-import type { ResumeTheme } from "../themes/types";
 
 const BULLET_REF = "resume-bullets";
-const HEADER_CENTER_STYLE = "ResumeHeaderCenter";
 const BODY_LEFT_STYLE = "ResumeBodyLeft";
-const DEFAULT_EDUCATION = ["Bachelors in Computer Science,"];
 
-function ptToHalfPoints(pt: number): number {
+function ptHalf(pt: number): number {
   return Math.round(pt * 2);
 }
 
-function ptToTwips(pt: number): number {
+function ptTwip(pt: number): number {
   return Math.round(pt * 20);
 }
 
-function hexToDocxColor(hex: string): string {
-  return hex.replace("#", "").toUpperCase();
+function hex(color: string): string {
+  return color.replace("#", "").toUpperCase();
 }
 
-function applyCase(text: string, mode: "normal" | "upper" | "title"): string {
-  if (mode === "upper") return text.toUpperCase();
-  if (mode === "title") {
-    return text.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
-  }
-  return text;
+function lineSpacing(template: ResumeTemplate) {
+  return Math.round(template.lineSpacing * 20);
 }
 
-function paragraphSpacing(theme: ResumeTheme, extra?: { before?: number; after?: number }) {
+function spacing(template: ResumeTemplate, extra?: { before?: number; after?: number }) {
   return {
-    before: ptToTwips(extra?.before ?? 0),
-    after: ptToTwips(extra?.after ?? theme.spacing.paraAfter),
-    line: Math.round(theme.spacing.line * 240),
+    before: ptTwip(extra?.before ?? 0),
+    after: ptTwip(extra?.after ?? 0),
+    line: lineSpacing(template),
   };
 }
 
-function bodyRun(
+function run(
   text: string,
-  theme: ResumeTheme,
-  opts?: { bold?: boolean; italics?: boolean; color?: string; size?: number },
-) {
+  template: ResumeTemplate,
+  opts?: { bold?: boolean; italics?: boolean; color?: string; size?: number; font?: string; underline?: boolean },
+): TextRun {
   return new TextRun({
     text,
-    font: theme.fonts.body,
-    size: ptToHalfPoints(opts?.size ?? theme.sizes.body),
-    color: hexToDocxColor(opts?.color ?? theme.colors.body),
+    font: opts?.font ?? template.fonts.body,
+    size: ptHalf(opts?.size ?? template.sizes.body),
+    color: hex(opts?.color ?? template.colors.body),
     bold: opts?.bold,
     italics: opts?.italics,
+    underline: opts?.underline ? {} : undefined,
   });
 }
 
-function emptyLine(theme: ResumeTheme): Paragraph {
+function emptyLine(template: ResumeTemplate): Paragraph {
   return new Paragraph({
     style: BODY_LEFT_STYLE,
-    alignment: AlignmentType.LEFT,
-    spacing: { before: 0, after: 0, line: Math.round(theme.spacing.line * 240) },
+    spacing: spacing(template),
     children: [],
   });
 }
 
-function sectionHeading(text: string, theme: ResumeTheme): Paragraph {
-  const label = applyCase(text, theme.sectionHeadingCase);
-  const border =
-    theme.sectionRule === "none"
-      ? undefined
-      : {
-          bottom: {
-            color: hexToDocxColor(theme.colors.rule),
-            space: 1,
-            style: BorderStyle.SINGLE,
-            size: theme.sectionRule === "short" ? 4 : 6,
-          },
-        };
+/** Kishan-style bold decorative rule (thinThickSmallGap). */
+function kishanDecorativeRule(template: ResumeTemplate): Paragraph {
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: spacing(template),
+    border: {
+      bottom: { style: BorderStyle.THICK_THIN_SMALL_GAP, size: 24, color: "auto", space: 1 },
+    },
+    children: [],
+  });
+}
 
+/** Gray band section heading with padded shaded bar. */
+function kishanBandHeading(template: ResumeTemplate, label: string): Paragraph {
   return new Paragraph({
     style: BODY_LEFT_STYLE,
-    alignment: AlignmentType.LEFT,
-    spacing: paragraphSpacing(theme, { before: theme.spacing.sectionBefore, after: 6 }),
-    border,
-    children: [
-      new TextRun({
-        text: label,
-        font: theme.fonts.heading,
-        size: ptToHalfPoints(theme.sizes.sectionHeading),
-        bold: true,
-        color: hexToDocxColor(theme.colors.heading),
+    alignment: AlignmentType.CENTER,
+    shading: { fill: hex(template.colors.sectionShading), type: ShadingType.CLEAR, color: "auto" },
+    spacing: {
+      before: ptTwip(8),
+      after: ptTwip(8),
+      line: ptTwip(16),
+    },
+    children: [run(label, template, { bold: true, underline: true, font: template.fonts.heading })],
+  });
+}
+
+function isKishanTemplate(template: ResumeTemplate): boolean {
+  return template.sectionHeading === "kishan_band";
+}
+
+function kishanSectionLeadingGap(template: ResumeTemplate): Paragraph[] {
+  return isKishanTemplate(template) ? [emptyLine(template)] : [];
+}
+
+function paragraph(
+  children: TextRun[],
+  template: ResumeTemplate,
+  opts?: { align?: (typeof AlignmentType)[keyof typeof AlignmentType]; before?: number; after?: number; border?: boolean; shading?: string },
+): Paragraph {
+  return new Paragraph({
+    style: BODY_LEFT_STYLE,
+    alignment: opts?.align ?? AlignmentType.LEFT,
+    spacing: spacing(template, { before: opts?.before, after: opts?.after }),
+    border: opts?.border
+      ? { bottom: { style: BorderStyle.SINGLE, size: 6, color: hex(template.colors.rule), space: 1 } }
+      : undefined,
+    shading: opts?.shading
+      ? { fill: hex(opts.shading), type: ShadingType.CLEAR, color: "auto" }
+      : undefined,
+    children,
+  });
+}
+
+function bullet(
+  text: string,
+  template: ResumeTemplate,
+  align: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.LEFT,
+): Paragraph {
+  return new Paragraph({
+    style: BODY_LEFT_STYLE,
+    alignment: align,
+    spacing: spacing(template),
+    numbering: { reference: BULLET_REF, level: 0 },
+    children: [run(text, template)],
+  });
+}
+
+function formatDuration(template: ResumeTemplate, start: string, end: string): string {
+  if (template.experience === "akhil_java") {
+    return `${start} to ${end}`;
+  }
+  if (template.experience === "akhil_data") {
+    return `${start.toUpperCase()} – ${end === "Present" ? "Present" : end.toUpperCase()}`;
+  }
+  if (template.experience === "jayanth") {
+    return `${start} - ${end === "Present" ? "present" : end}`;
+  }
+  return `${start} – ${end}`;
+}
+
+const NO_CELL_BORDERS = {
+  top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+  bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+  left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+  right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+};
+
+const TABLE_BORDERS = {
+  top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+  bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+  left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+  right: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+  insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+  insideVertical: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+};
+
+function twoColumnLine(
+  left: TextRun[],
+  right: TextRun[],
+  template: ResumeTemplate,
+): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: NO_CELL_BORDERS,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 70, type: WidthType.PERCENTAGE },
+            borders: NO_CELL_BORDERS,
+            children: [paragraph(left, template)],
+          }),
+          new TableCell({
+            width: { size: 30, type: WidthType.PERCENTAGE },
+            borders: NO_CELL_BORDERS,
+            children: [paragraph(right, template, { align: AlignmentType.RIGHT })],
+          }),
+        ],
       }),
     ],
   });
 }
 
-function bulletParagraph(text: string, theme: ResumeTheme): Paragraph {
-  return new Paragraph({
-    style: BODY_LEFT_STYLE,
-    alignment: AlignmentType.LEFT,
-    spacing: paragraphSpacing(theme),
-    numbering: { reference: BULLET_REF, level: 0 },
-    children: [bodyRun(text, theme)],
-  });
+function sectionHeading(template: ResumeTemplate, kind: SectionKind): Paragraph {
+  const label = template.sectionLabels[kind] ?? kind.toUpperCase();
+  const color = template.colors.heading;
+
+  switch (template.sectionHeading) {
+    case "kishan_band":
+      return kishanBandHeading(template, label);
+    case "purple_underline":
+      return paragraph([run(label, template, { bold: true, underline: true, color, size: template.sizes.sectionHeading })], template, {
+        before: kind === "skills" ? 3.9 : 0,
+      });
+    case "blue_rule":
+      return paragraph(
+        [run(label, template, { bold: true, color, size: template.sizes.sectionHeading })],
+        template,
+        { align: AlignmentType.BOTH, border: true },
+      );
+    case "arial_bold":
+      return paragraph([run(label, template, { bold: true, font: template.fonts.heading })], template, {
+        align: AlignmentType.BOTH,
+      });
+  }
+
+  return paragraph([run(label, template, { bold: true })], template);
 }
 
-function bodyParagraph(
-  content: TextRun[],
-  theme: ResumeTheme,
-  opts?: { before?: number; after?: number; alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] },
-): Paragraph {
-  return new Paragraph({
-    style: BODY_LEFT_STYLE,
-    alignment: opts?.alignment ?? AlignmentType.LEFT,
-    spacing: paragraphSpacing(theme, { before: opts?.before, after: opts?.after }),
-    children: content,
-  });
+function buildHeader(resume: ResumeModel, template: ResumeTemplate): (Paragraph | Table)[] {
+  const contact = formatContactLine(resolveContact(resume.contact));
+
+  switch (template.header) {
+    case "kishan":
+      return [
+        paragraph([run(resume.name, template, { bold: true, size: template.sizes.name })], template, {
+          align: AlignmentType.CENTER,
+          after: 7,
+        }),
+        paragraph([run(`${contact} `, template, { bold: true, size: template.sizes.contact })], template, {
+          align: AlignmentType.CENTER,
+        }),
+        kishanDecorativeRule(template),
+      ];
+
+    case "akhil_data":
+      return [
+        paragraph([run(resume.name.toUpperCase(), template, { color: template.colors.name, size: template.sizes.name })], template),
+        paragraph([run(`• ${contact.replace(/ · /g, " • ")}`, template)], template),
+        emptyLine(template),
+        paragraph([run(resume.title, template, { size: template.sizes.role })], template),
+        emptyLine(template),
+      ];
+
+    case "akhil_java":
+      return [
+        paragraph([run(resume.name, template, { size: template.sizes.name })], template, { after: 1, before: 0.25 }),
+        paragraph([run(contact, template, { size: template.sizes.contact })], template, { before: 1.05 }),
+        emptyLine(template),
+      ];
+
+    case "vasu":
+      return [
+        paragraph([run(resume.name, template, { bold: true, color: template.colors.name, size: template.sizes.name })], template, {
+          align: AlignmentType.CENTER,
+        }),
+        paragraph([run(resume.title, template, { bold: true, color: template.colors.role, size: template.sizes.role })], template, {
+          align: AlignmentType.CENTER,
+        }),
+        paragraph([run(contact, template, { color: template.colors.contact, size: template.sizes.contact })], template, {
+          align: AlignmentType.CENTER,
+        }),
+      ];
+
+    case "jayanth":
+      return [
+        paragraph([run(resume.name, template, { bold: true, size: template.sizes.name, font: template.fonts.heading })], template, {
+          align: AlignmentType.BOTH,
+        }),
+        paragraph(
+          [run(resume.title, template, { bold: true, color: template.colors.role, size: template.sizes.role, font: template.fonts.heading })],
+          template,
+          { align: AlignmentType.BOTH },
+        ),
+        emptyLine(template),
+        paragraph(
+          [
+            run("Email: ", template, { bold: true, size: template.sizes.contact, font: template.fonts.heading }),
+            run(contact, template, { size: template.sizes.contact, font: template.fonts.heading }),
+          ],
+          template,
+          { align: AlignmentType.BOTH, border: true },
+        ),
+        emptyLine(template),
+      ];
+
+    case "keerthana_table":
+      return [
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: NO_CELL_BORDERS,
+          rows: [
+            new TableRow({
+              children: [
+                new TableCell({
+                  borders: NO_CELL_BORDERS,
+                  children: [paragraph([run(resume.name, template, { size: template.sizes.name })], template)],
+                }),
+                new TableCell({
+                  borders: NO_CELL_BORDERS,
+                  children: [paragraph([run(resume.title, template, { size: template.sizes.role })], template)],
+                }),
+                new TableCell({
+                  borders: NO_CELL_BORDERS,
+                  children: [paragraph([run(contact, template, { size: template.sizes.contact })], template)],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ];
+  }
 }
 
-function buildHeader(resume: ResumeModel, theme: ResumeTheme): Paragraph[] {
-  const nameText = applyCase(resume.name, theme.nameCase);
-  const contactLine = formatContactLine(resolveContact(resume.contact));
-  // Name + contact are always centered per house style (overrides theme.nameAlign).
-  const alignment = AlignmentType.CENTER;
-
-  const bandShading = theme.nameBand
-    ? { fill: hexToDocxColor(theme.colors.accent), type: ShadingType.CLEAR, color: "auto" }
-    : undefined;
-
-  const headerParagraph = (opts: {
-    after?: number;
-    border?: {
-      bottom: { color: string; space: number; style: typeof BorderStyle.SINGLE; size: number };
-    };
-    children: TextRun[];
-  }) =>
-    new Paragraph({
-      style: HEADER_CENTER_STYLE,
-      alignment,
-      spacing: paragraphSpacing(theme, { after: opts.after ?? 2 }),
-      shading: bandShading,
-      border: opts.border,
-      children: opts.children,
-    });
-
-  return [
-    headerParagraph({
-      border:
-        theme.nameRule === "full" && !theme.nameBand
-          ? {
-              bottom: {
-                color: hexToDocxColor(theme.colors.rule),
-                space: 1,
-                style: BorderStyle.SINGLE,
-                size: 6,
-              },
-            }
-          : undefined,
-      children: [
-        new TextRun({
-          text: nameText,
-          font: theme.fonts.heading,
-          size: ptToHalfPoints(theme.sizes.name),
-          bold: true,
-          color: hexToDocxColor(theme.nameBand ? "#FFFFFF" : theme.colors.name),
-        }),
-      ],
-    }),
-    headerParagraph({
-      children: [
-        new TextRun({
-          text: resume.title,
-          font: theme.fonts.body,
-          size: ptToHalfPoints(theme.sizes.roleTitle),
-          bold: true,
-          color: hexToDocxColor(theme.nameBand ? "#FFFFFF" : theme.colors.body),
-        }),
-      ],
-    }),
-    headerParagraph({
-      after: 8,
-      children: [
-        new TextRun({
-          text: contactLine,
-          font: theme.fonts.body,
-          size: ptToHalfPoints(theme.sizes.small),
-          color: hexToDocxColor(theme.nameBand ? "#FFFFFF" : theme.colors.body),
-        }),
-      ],
-    }),
-  ];
+function summaryAlign(template: ResumeTemplate): (typeof AlignmentType)[keyof typeof AlignmentType] {
+  if (template.header === "kishan") return AlignmentType.BOTH;
+  if (template.header === "akhil_data" || template.header === "keerthana_table") return AlignmentType.BOTH;
+  return AlignmentType.BOTH;
 }
 
-function bulletFormat(): (typeof LevelFormat)[keyof typeof LevelFormat] {
-  return LevelFormat.BULLET;
+function buildSummary(resume: ResumeModel, template: ResumeTemplate, bulletsOnly = false): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [];
+  const align = summaryAlign(template);
+
+  if (!bulletsOnly) {
+    out.push(
+      paragraph([run(resume.summary.opening, template)], template, { align }),
+    );
+  }
+
+  for (const item of resume.summary.bullets) {
+    out.push(bullet(item, template, align));
+  }
+
+  return out;
+}
+
+function buildSkills(resume: ResumeModel, template: ResumeTemplate): (Paragraph | Table)[] {
+  if (template.skills === "table_bordered") {
+    return [
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: TABLE_BORDERS,
+        rows: resume.skills.map(
+          (group) =>
+            new TableRow({
+              children: [
+                new TableCell({
+                  width: { size: 28, type: WidthType.PERCENTAGE },
+                  children: [paragraph([run(group.label, template, { bold: true })], template)],
+                }),
+                new TableCell({
+                  width: { size: 72, type: WidthType.PERCENTAGE },
+                  children: [paragraph([run(group.items.join(", "), template)], template)],
+                }),
+              ],
+            }),
+        ),
+      }),
+    ];
+  }
+
+  const align = template.header === "kishan" ? AlignmentType.BOTH : AlignmentType.LEFT;
+  return resume.skills.map((group) =>
+    paragraph(
+      [run(`${group.label}: `, template, { bold: true }), run(group.items.join(", "), template)],
+      template,
+      { align },
+    ),
+  );
+}
+
+function buildEducation(resume: ResumeModel, template: ResumeTemplate): Paragraph[] {
+  const lines = resume.education?.length ? resume.education : template.educationDefault;
+  return lines.map((line) => paragraph([run(line, template, { bold: template.sectionHeading === "plain" && template.id === "akhil_data_engineer" })], template));
+}
+
+function buildCertifications(template: ResumeTemplate): Paragraph[] {
+  if (!template.certifications?.length) return [];
+  return template.certifications.map((line) =>
+    paragraph([run(line, template, { bold: template.id === "keerthana_servicenow" })], template),
+  );
+}
+
+function buildExperienceBlock(resume: ResumeModel, template: ResumeTemplate): (Paragraph | Table)[] {
+  const blocks: (Paragraph | Table)[] = [];
+
+  for (let roleIndex = 0; roleIndex < resume.roles.length; roleIndex++) {
+    const role = resume.roles[roleIndex];
+    if (!isKishanTemplate(template) || roleIndex > 0) {
+      blocks.push(emptyLine(template));
+    }
+    const duration = formatDuration(template, role.dates.start, role.dates.end);
+
+    switch (template.experience as ExperienceLayout) {
+      case "kishan":
+        blocks.push(
+          paragraph(
+            [
+              run(`${role.title} | `, template, { bold: true, font: template.fonts.body }),
+              run(duration, template, { bold: true, font: template.fonts.body }),
+            ],
+            template,
+          ),
+        );
+        blocks.push(
+          paragraph([run(`${role.company}, ${role.location}`, template, { bold: true, font: template.fonts.body })], template),
+        );
+        blocks.push(emptyLine(template));
+        break;
+
+      case "akhil_data":
+        blocks.push(paragraph([run(duration, template, { bold: true, color: template.colors.duration })], template));
+        blocks.push(
+          paragraph(
+            [
+              run(`${role.title} | `, template, { size: 11 }),
+              run(`${role.company} | ${role.location}`, template),
+            ],
+            template,
+          ),
+        );
+        break;
+
+      case "akhil_java":
+        blocks.push(
+          paragraph(
+            [run(`${role.company}, ${role.location} ${duration}`, template, { bold: true, color: template.colors.duration, size: template.sizes.body })],
+            template,
+          ),
+        );
+        blocks.push(paragraph([run(role.title, template, { bold: true, color: template.colors.duration, size: template.sizes.body })], template));
+        blocks.push(emptyLine(template));
+        blocks.push(paragraph([run("Responsibilities:", template, { bold: true, size: template.sizes.body })], template));
+        break;
+
+      case "vasu":
+        blocks.push(
+          twoColumnLine(
+            [
+              run(`${role.title} `, template, { bold: true, color: template.colors.duration }),
+            ],
+            [
+              run(duration, template, { bold: true, color: template.colors.duration }),
+            ],
+            template,
+          ),
+        );
+        blocks.push(
+          paragraph(
+            [run(`${role.company} | ${role.location}`, template, { bold: true, color: template.colors.duration })],
+            template,
+          ),
+        );
+        break;
+
+      case "jayanth":
+        blocks.push(
+          paragraph(
+            [
+              run("Client: ", template, { bold: true, size: template.sizes.body, font: template.fonts.heading }),
+              run(`${role.company} (${role.location})`, template, { bold: true, size: template.sizes.body, font: template.fonts.heading }),
+            ],
+            template,
+          ),
+        );
+        blocks.push(
+          paragraph(
+            [
+              run("Role: ", template, { bold: true, size: template.sizes.body, font: template.fonts.heading }),
+              run(`${role.title} ${duration}`, template, { bold: true, size: template.sizes.body, font: template.fonts.heading }),
+            ],
+            template,
+          ),
+        );
+        blocks.push(emptyLine(template));
+        break;
+
+      case "keerthana":
+        blocks.push(
+          twoColumnLine(
+            [run(role.company.toUpperCase(), template, { size: 11 })],
+            [run(duration.toUpperCase(), template, { size: 11 })],
+            template,
+          ),
+        );
+        blocks.push(paragraph([run(`${role.title} — ${role.location}`, template, { bold: true })], template));
+        break;
+    }
+
+    blocks.push(
+      paragraph(
+        [
+          run(`${role.projectName}: `, template, { bold: true }),
+          run(role.intro, template),
+        ],
+        template,
+        { align: AlignmentType.BOTH },
+      ),
+    );
+
+    for (const item of role.bullets) {
+      blocks.push(bullet(item, template, AlignmentType.BOTH));
+    }
+
+    if (template.experience !== "akhil_java") {
+      blocks.push(
+        paragraph(
+          [run("Environments: ", template, { bold: true }), run(role.environments.join(", "), template)],
+          template,
+          { align: AlignmentType.BOTH },
+        ),
+      );
+    }
+
+    blocks.push(emptyLine(template));
+  }
+
+  return blocks;
+}
+
+function buildSection(
+  kind: SectionKind,
+  resume: ResumeModel,
+  template: ResumeTemplate,
+): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [];
+
+  if (kind === "profile") {
+    const label = template.sectionLabels.profile ?? "PROFILE";
+    if (template.sectionHeading === "kishan_band") {
+      out.push(emptyLine(template));
+      out.push(kishanBandHeading(template, label));
+      out.push(...kishanSectionLeadingGap(template));
+      out.push(
+        paragraph([run(resume.summary.opening, template, { font: template.fonts.body })], template, {
+          align: AlignmentType.CENTER,
+        }),
+      );
+      out.push(kishanDecorativeRule(template));
+      out.push(emptyLine(template));
+      return out;
+    }
+
+    out.push(sectionHeading(template, "profile"));
+    out.push(
+      paragraph([run(resume.summary.opening, template, { font: template.fonts.body })], template, {
+        align: AlignmentType.CENTER,
+      }),
+    );
+    out.push(emptyLine(template));
+    return out;
+  }
+
+  if (kind === "summary") {
+    if (template.summaryHeading) {
+      out.push(sectionHeading(template, "summary"));
+    }
+    out.push(...kishanSectionLeadingGap(template));
+    out.push(...buildSummary(resume, template, template.splitProfileSummary));
+    out.push(emptyLine(template));
+    return out;
+  }
+
+  if (kind === "skills") {
+    out.push(sectionHeading(template, "skills"));
+    out.push(...kishanSectionLeadingGap(template));
+    out.push(...buildSkills(resume, template));
+    out.push(emptyLine(template));
+    return out;
+  }
+
+  if (kind === "education") {
+    out.push(sectionHeading(template, "education"));
+    out.push(...kishanSectionLeadingGap(template));
+    out.push(...buildEducation(resume, template));
+    out.push(emptyLine(template));
+    return out;
+  }
+
+  if (kind === "certifications") {
+    out.push(sectionHeading(template, "certifications"));
+    out.push(...kishanSectionLeadingGap(template));
+    out.push(...buildCertifications(template));
+    out.push(emptyLine(template));
+    return out;
+  }
+
+  out.push(sectionHeading(template, "experience"));
+  out.push(...kishanSectionLeadingGap(template));
+  out.push(...buildExperienceBlock(resume, template));
+  return out;
 }
 
 export async function assembleDocx(resume: ResumeModel, themeId?: string): Promise<Buffer> {
-  const theme = getTheme(themeId ?? resume.themeId);
-  const children: Paragraph[] = [];
-  const educationLines = resume.education?.length ? resume.education : DEFAULT_EDUCATION;
+  const template = getTheme(themeId ?? resume.themeId);
+  const children: (Paragraph | Table)[] = [];
 
-  children.push(...buildHeader(resume, theme));
-  children.push(emptyLine(theme));
+  children.push(...buildHeader(resume, template));
 
-  children.push(sectionHeading("Summary", theme));
-  children.push(bodyParagraph([bodyRun(resume.summary.opening, theme)], theme));
-  for (const bullet of resume.summary.bullets) {
-    children.push(bulletParagraph(bullet, theme));
+  if (template.header !== "kishan" && template.header !== "jayanth") {
+    children.push(emptyLine(template));
   }
-  children.push(emptyLine(theme));
 
-  children.push(sectionHeading("Technical Skills", theme));
-  for (const group of resume.skills) {
-    children.push(
-      bodyParagraph(
-        [bodyRun(`${group.label}: `, theme, { bold: true }), bodyRun(group.items.join(", "), theme)],
-        theme,
-      ),
-    );
-  }
-  children.push(emptyLine(theme));
-
-  children.push(sectionHeading("Education", theme));
-  for (const line of educationLines) {
-    children.push(bodyParagraph([bodyRun(line, theme)], theme, { alignment: AlignmentType.LEFT }));
-  }
-  children.push(emptyLine(theme));
-
-  children.push(sectionHeading("Professional Experience", theme));
-  for (const role of resume.roles) {
-    children.push(emptyLine(theme));
-
-    children.push(
-      bodyParagraph(
-        [
-          bodyRun(`${role.title} | `, theme, { bold: true }),
-          bodyRun(`${role.dates.start} – ${role.dates.end}`, theme),
-        ],
-        theme,
-        { alignment: AlignmentType.LEFT, before: 0 },
-      ),
-    );
-
-    children.push(
-      bodyParagraph([bodyRun(role.company, theme, { bold: true })], theme, {
-        alignment: AlignmentType.LEFT,
-        after: 4,
-      }),
-    );
-
-    children.push(
-      bodyParagraph([bodyRun(`${role.projectName}: ${role.intro}`, theme)], theme),
-    );
-
-    for (const bullet of role.bullets) {
-      children.push(bulletParagraph(bullet, theme));
-    }
-
-    children.push(
-      bodyParagraph(
-        [bodyRun("Environments: ", theme, { bold: true }), bodyRun(role.environments.join(", "), theme)],
-        theme,
-        { after: 4 },
-      ),
-    );
-
-    children.push(emptyLine(theme));
+  for (const section of template.sectionOrder) {
+    children.push(...buildSection(section, resume, template));
   }
 
   const doc = new Document({
@@ -284,17 +616,7 @@ export async function assembleDocx(resume: ResumeModel, themeId?: string): Promi
           name: "Resume Body Left",
           basedOn: "Normal",
           quickFormat: true,
-          paragraph: {
-            alignment: AlignmentType.LEFT,
-          },
-        },
-        {
-          id: HEADER_CENTER_STYLE,
-          name: "Resume Header Center",
-          basedOn: "Normal",
-          paragraph: {
-            alignment: AlignmentType.CENTER,
-          },
+          paragraph: { alignment: AlignmentType.LEFT },
         },
       ],
     },
@@ -305,8 +627,8 @@ export async function assembleDocx(resume: ResumeModel, themeId?: string): Promi
           levels: [
             {
               level: 0,
-              format: bulletFormat(),
-              text: theme.bulletGlyph,
+              format: LevelFormat.BULLET,
+              text: template.bulletGlyph,
               alignment: AlignmentType.LEFT,
               style: {
                 paragraph: {
@@ -323,10 +645,10 @@ export async function assembleDocx(resume: ResumeModel, themeId?: string): Promi
         properties: {
           page: {
             margin: {
-              top: convertInchesToTwip(theme.margins.top),
-              bottom: convertInchesToTwip(theme.margins.bottom),
-              left: convertInchesToTwip(theme.margins.left),
-              right: convertInchesToTwip(theme.margins.right),
+              top: convertInchesToTwip(template.margins.top),
+              bottom: convertInchesToTwip(template.margins.bottom),
+              left: convertInchesToTwip(template.margins.left),
+              right: convertInchesToTwip(template.margins.right),
             },
           },
         },

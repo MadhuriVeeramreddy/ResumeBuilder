@@ -19,7 +19,7 @@ export function ThemePicker({ themes, selectedId, onSelect, disabled }: ThemePic
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-slate-700">Theme</p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {themes.map((theme) => {
           const selected = theme.id === selectedId;
           return (

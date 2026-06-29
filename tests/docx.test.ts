@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assembleDocx, resumeFilename } from "@/lib/docx/assemble";
+import { ALL_TEMPLATES } from "@/lib/themes/templates";
 import type { ResumeModel } from "@/lib/schemas";
 
 const mockResume: ResumeModel = {
@@ -34,7 +35,7 @@ const mockResume: ResumeModel = {
       dates: { start: "Feb 2024", end: "Present" },
     },
   ],
-  themeId: "classic_navy",
+  themeId: "kishan_ba",
 };
 
 describe("assembleDocx", () => {
@@ -49,20 +50,10 @@ describe("assembleDocx", () => {
   });
 });
 
-describe("themes", () => {
-  it("renders all eight themes", async () => {
-    const themes = [
-      "classic_navy",
-      "modern_sage",
-      "minimal_mono",
-      "executive_burgundy",
-      "tech_slate",
-      "compact_pro",
-      "banded_indigo",
-      "elegant_garamond",
-    ];
-    for (const themeId of themes) {
-      const buffer = await assembleDocx({ ...mockResume, themeId });
+describe("templates", () => {
+  it("renders all six layout templates", async () => {
+    for (const template of ALL_TEMPLATES) {
+      const buffer = await assembleDocx({ ...mockResume, themeId: template.id });
       expect(buffer.length).toBeGreaterThan(1000);
     }
   });
